@@ -1,0 +1,75 @@
+name: Frontend Continuous Integration
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Linting:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check the Repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Restore cache
+      uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+    - name: Install Dependencies
+      run: cd starter/frontend && npm ci
+
+    - name: Run Linting
+      run: cd starter/frontend && npm run lint
+
+  Testing:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check the Repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Restore cache
+      uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+    - name: Install Dependencies
+      run: cd starter/frontend && npm ci
+
+    - name: Run Testing
+      run: cd starter/frontend && npm run test
+      
+  Build:
+    needs: [Linting, Testing]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check the Repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Build and Run Docker Image
+      run: |
+        cd starter/frontend
+        docker build --build-arg=REACT_APP_MOVIE_API_URL=http://localhost:5000 --tag=mp-frontend:latest .
+        docker run --name mp-frontend -p 3000:3000 -d mp-frontend

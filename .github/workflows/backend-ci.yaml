@@ -1,0 +1,79 @@
+name: 'Backend Continuous Integration'
+on:
+  workflow_dispatch:
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  linting:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+      
+      - name: Restore cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          
+      - name: Install dependencies
+        run: |
+          cd ./starter/backend
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pip install flake8
+
+      - name: Run lint check
+        run: cd starter/backend && pipenv run lint
+
+  testing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+
+      - name: Restore cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          
+      - name: Install dependencies
+        run: |
+          cd ./starter/backend
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pipenv install pytest 
+          
+
+      - name: Run tests
+        run: cd starter/backend && pipenv run test
+
+  build:
+    needs: [linting, testing]
+    runs-on: ubuntu-latest 
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: Build Docker Image
+        run: |
+          cd ./starter/backend
+          docker build --tag mp-backend:latest .

@@ -1,0 +1,87 @@
+name: Frontend Continuous Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  Linting:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check the Repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Install Dependencies
+      run: cd starter/frontend && npm ci
+
+    - name: Run Linting
+      run: cd starter/frontend && npm run lint -- --fix
+
+  Testing:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check the Repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Install Dependencies
+      run: cd starter/frontend && npm ci
+
+    - name: Run Testing
+      run: cd starter/frontend && npm run test
+      
+  Build:
+    needs: [Linting, Testing]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check the Repository
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 20
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
+        aws-region: us-east-1
+
+    - name: Login to Amazon 
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and Push Docker Image
+      working-directory: starter/frontend
+      run: |
+        docker build --build-arg=REACT_APP_MOVIE_API_URL=http://localhost:5000 --tag 404102329038.dkr.ecr.us-east-1.amazonaws.com/frontend:latest .
+        docker push 404102329038.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
+
+    - name: Configure Kubeconfig
+      run:
+       aws eks update-kubeconfig --name cluster --region us-east-1
+       
+    - name: Deploy Docker Image to Amazon EKS
+      working-directory: starter/frontend/k8s
+      run: |
+          kustomize edit set image frontend=404102329038.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
+          kustomize build | kubectl apply -f -   
+
+        

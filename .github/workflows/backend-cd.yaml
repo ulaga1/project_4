@@ -75,8 +75,8 @@ jobs:
     - name: Build and Push Docker Image
       working-directory: starter/backend
       run: |
-        docker build --tag ${secrets.AccountID}.dkr.ecr.us-east-1.amazonaws.com/backend:latest .
-        docker push ${secrets.AccountID}.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+        docker build --tag 404102329038.dkr.ecr.us-east-1.amazonaws.com/backend:latest .
+        docker push 404102329038.dkr.ecr.us-east-1.amazonaws.com/backend:latest
 
     - name: Configure Kubeconfig
       run:
@@ -85,5 +85,5 @@ jobs:
     - name: Deploy Docker Image to Amazon EKS
       working-directory: starter/backend/k8s
       run: |
-          kustomize edit set image backend=${secrets.AccountID}.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+          kustomize edit set image backend=404102329038.dkr.ecr.us-east-1.amazonaws.com/backend:latest
           kustomize build | kubectl apply -f - 

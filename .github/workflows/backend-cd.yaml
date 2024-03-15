@@ -1,0 +1,89 @@
+name: Backend Continuous Deployment
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  linting:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+               
+      - name: Install dependencies
+        run: |
+          cd starter/backend
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pip install flake8
+
+      - name: Run Linting
+        run: cd starter/backend && pipenv run lint
+
+  testing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+        
+      - name: Install dependencies
+        run: |
+          cd starter/backend
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pipenv install pytest 
+          
+
+      - name: Run Testing
+        run: cd starter/backend && pipenv run test
+
+  Build:
+    needs: [Linting, Testing]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check the Repository
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{secrets.AWS_SESSION_TOKEN}}
+        aws-region: us-east-1
+
+    - name: Login to Amazon 
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and Push Docker Image
+      working-directory: starter/backend
+      run: |
+        docker build --tag 404102329038.dkr.ecr.us-east-1.amazonaws.com/backend:latest .
+        docker push 404102329038.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+
+    - name: Configure Kubeconfig
+      run:
+       aws eks update-kubeconfig --name cluster --region us-east-1
+       
+    - name: Deploy Docker Image to Amazon EKS
+      working-directory: starter/backend/k8s
+      run: |
+          kustomize edit set image backend=404102329038.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+          kustomize build | kubectl apply -f - 

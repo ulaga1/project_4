@@ -68,7 +68,14 @@ jobs:
       with:
         node-version: 20
 
-    - name: Build Docker Image
-      run: |
-        cd starter/frontend
-        docker build --build-arg=REACT_APP_MOVIE_API_URL=http://localhost:5000 --tag=mp-frontend:latest .
+    - name: Restore cache
+      uses: actions/cache@v2
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+    - name: Install Dependencies
+      run: cd starter/frontend && npm ci
+
+    - name: Run Testing
+      run: cd starter/frontend && npm run test
